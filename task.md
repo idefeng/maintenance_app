@@ -1,0 +1,30 @@
+# Tasks
+
+- [ ] 检查下一次 13:00 定时执行结果，确认未命中关键词的文档会进入 `A-项目管理/其他信息`
+- [ ] 再次确认下一次 13:00 定时执行时，`Terminal` 唤起方式不会被系统拦截
+- [ ] 检查下一次 13:00 定时执行结果，确认压缩包会按新规则进入 `A-项目管理/其他信息/软件安装包`
+- [ ] 检查下一次 13:00 定时执行结果，确认 `Terminal` 进程具备 `Desktop`、`Downloads`、`Documents` 访问权限
+- [ ] 检查下一次 13:00 定时执行结果，确认普通非文档文件会保留原位并写入跳过清单
+- [ ] 查看 `tools/file_organizer/runtime/reports/pending-directories-latest.json`，决定待处理子目录的后续人工整理策略
+- [ ] 检查下一次 13:00 之后的真实执行结果，确认新规则下是否有文件被正确移动
+- [ ] 检查下一次 13:00 定时执行结果，确认 Synology Drive 在线且目标项目目录可写
+- [ ] 根据真实整理结果评估是否需要为普通非文档文件补充新的自动整理规则
+- [ ] 安装并验证 `com.idefeng.app-cleanup.plist` 是否会在每周五北京时间 14:00 触发
+- [ ] 用 `LetsVPN` 等已卸载应用做一次真实半自动清理，补充更准确的别名与 bundle id 规则
+- [ ] 根据真实清理结果微调 `safe_delete` 与 `report_only` 分类边界
+- [ ] 评估是否需要为应用残留清理工具增加交互确认删除模式
+- [ ] 检查下一次周六 10:30 的 `com.idefeng.disk-cleanup` 定时执行结果，确认只执行保守清理
+- [ ] 根据 `tools/disk_cleanup/runtime/reports/latest.json` 观察是否需要调整 DEV 清理白名单
+- [ ] 根据 `tools/disk_cleanup/runtime/reports/latest.json` 的 `login_items` 报告，人工确认 TeamViewer、ToDesk、LetsGo、vivo 等重复项是否需要卸载或清理
+- [ ] 检查下一次 13:00 的 `com.idefeng.file-organizer` 定时执行结果，确认已通过统一脚本运行且没有触发 DEV 缓存清理
+- [x] 创建 macOS 原生维护工具项目，用 SwiftUI 展示文件整理、磁盘清理、登录项和定时任务状态
+- [x] 将 `tools/maintenance_app` 从 SwiftPM 可运行版本进一步打包为可双击启动的 `.app`
+- [x] 为 `MaintenanceApp.app` 增加自定义图标，并评估是否复制到 `/Applications`
+- [x] 后续优化 `MaintenanceApp`：增加日志查看、打开报告文件、重新安装 launchd 的按钮
+- [x] 后续优化 `MaintenanceApp`：增加运行结果详情抽屉，避免安装脚本输出只体现在状态栏
+- [x] 后续优化 `MaintenanceApp`：为清理候选项和登录项增加筛选、搜索与单项详情
+- [x] 后续优化 `MaintenanceApp`：增加 App 内日志预览，减少跳转 Finder 后再手动打开日志文件
+- [x] 后续优化 `MaintenanceApp`：增加报告导出和复制摘要，方便把清理结果发给人工复核
+- [x] 后续优化 `MaintenanceApp`：按 Figma 设计稿调整原生窗口布局、标题操作区和日志预览弹窗
+- [x] 后续优化 `MaintenanceApp`：增加磁盘空间图表、额外整理路径配置、登录项图标和定时任务图标
+- [ ] 后续优化 `MaintenanceApp`：增加真实定时执行结果的健康检查视图，集中提示最近一次执行是否成功

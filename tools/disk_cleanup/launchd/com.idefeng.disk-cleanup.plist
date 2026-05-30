@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.idefeng.disk-cleanup</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/bin/osascript</string>
+      <string>-e</string>
+      <string>tell application "Terminal" to do script "/bin/zsh /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/run_disk_cleanup.sh"</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+      <key>Weekday</key>
+      <integer>6</integer>
+      <key>Hour</key>
+      <integer>10</integer>
+      <key>Minute</key>
+      <integer>30</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+  </dict>
+</plist>

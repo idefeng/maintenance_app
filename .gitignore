@@ -1,0 +1,38 @@
+.DS_Store
+__pycache__/
+*.pyc
+$CODEX_HOME/
+package-lock.json
+
+# 本机资料/整理目标目录，不进入公开代码仓库
+CME/
+中医药项目/
+公司信息/
+可验证自学项目/
+培训统筹项目/
+工业互联网项目/
+托育项目/
+睡眠项目/
+其他信息/
+
+# Python 运行缓存
+tools/**/__pycache__/
+
+# 文件整理工具运行产物
+tools/file_organizer/runtime/logs/
+tools/file_organizer/runtime/reports/
+tools/file_organizer/runtime/config/
+
+# 应用残留扫描工具运行产物
+tools/app_cleanup/runtime/logs/
+tools/app_cleanup/runtime/reports/
+
+# 磁盘空间清理工具运行产物
+tools/disk_cleanup/runtime/logs/*
+tools/disk_cleanup/runtime/reports/*
+!tools/disk_cleanup/runtime/logs/.gitkeep
+!tools/disk_cleanup/runtime/reports/.gitkeep
+
+# SwiftPM 构建产物
+tools/maintenance_app/.build/
+tools/maintenance_app/dist/
