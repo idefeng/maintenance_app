@@ -625,6 +625,52 @@ func checkAppBundleTemplate() throws {
     expect(payload["CFBundlePackageType"] as? String == "APPL", "App Bundle 类型错误")
 }
 
+func checkAppCleanupReportDecoding() throws {
+    let payload = """
+    {
+      "app_name": "TestApp",
+      "generated_at": "2026-05-31T14:30:00",
+      "cleanup_mode": "dry_run",
+      "scan_roots": [
+        {
+          "category": "caches",
+          "path": "/Users/idefeng/Library/Caches/TestApp",
+          "status": "scanned"
+        }
+      ],
+      "matches": [
+        {
+          "path": "/Users/idefeng/Library/Caches/TestApp/cache.db",
+          "category": "caches",
+          "name": "cache.db",
+          "match_reason": "name_match",
+          "path_type": "file",
+          "risk_level": "low",
+          "planned_action": "safe_delete",
+          "action_status": "pending",
+          "action_error": null
+        }
+      ],
+      "match_count": 1,
+      "action_summary": {
+        "safe_delete": 1,
+        "report_only": 0,
+        "skip": 0,
+        "deleted": 0,
+        "reported": 0,
+        "failed": 0
+      }
+    }
+    """.data(using: .utf8)!
+
+    let report = try AppCleanupReport.decode(from: payload)
+    expect(report.appName == "TestApp", "应用清理报告名称解析错误")
+    expect(report.generatedAt == "2026-05-31T14:30:00", "应用清理报告时间解析错误")
+    expect(report.scanRoots.first?.category == "caches", "应用清理扫描根目录解析错误")
+    expect(report.matches.first?.name == "cache.db", "应用清理匹配项解析错误")
+    expect(report.actionSummary.safeDelete == 1, "应用清理动作汇总解析错误")
+}
+
 checkPaths()
 checkDiskUsageSnapshot()
 try checkFileOrganizerSourceConfig()
@@ -637,4 +683,5 @@ try checkMaintenanceLogReader()
 try checkMaintenanceReportExporter()
 try checkMaintenanceHealthAnalyzer()
 try checkAppBundleTemplate()
+try checkAppCleanupReportDecoding()
 print("MaintenanceCoreChecks passed")

@@ -22,6 +22,8 @@ final class AppViewModel: ObservableObject {
         launchAgents: [],
         fileOrganizerSources: []
     )
+    @Published var appCleanupSearchText = ""
+    @Published var appCleanupReport: AppCleanupReport? = nil
 
     private let paths: MaintenancePaths
     private let runner: MaintenanceRunner
@@ -274,6 +276,73 @@ final class AppViewModel: ObservableObject {
             statusMessage = "已打开 \(url.lastPathComponent)"
         } else {
             errorMessage = "无法打开：\(url.path)"
+        }
+    }
+
+    func runAppCleanupScan(appName: String) {
+        let trimmedName = appName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            errorMessage = "请输入需要扫描的应用名称"
+            return
+        }
+        
+        if isRunning {
+            return
+        }
+        
+        isRunning = true
+        statusMessage = "正在扫描应用 [\(trimmedName)] 的残留文件..."
+        errorMessage = nil
+        
+        let runner = self.runner
+        Task {
+            do {
+                let freshReport = try await Task.detached {
+                    try runner.runAppCleanup(appName: trimmedName, apply: false)
+                }.value
+                
+                appCleanupReport = freshReport
+                statusMessage = "应用残留扫描完成，发现 \(freshReport.matchCount) 处匹配"
+                errorMessage = nil
+            } catch {
+                errorMessage = error.localizedDescription
+                statusMessage = "残留扫描失败"
+            }
+            isRunning = false
+        }
+    }
+    
+    func runAppCleanupApply(appName: String) {
+        let trimmedName = appName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            errorMessage = "请输入需要清理的应用名称"
+            return
+        }
+        
+        if isRunning {
+            return
+        }
+        
+        isRunning = true
+        statusMessage = "正在清理应用 [\(trimmedName)] 的低风险残留..."
+        errorMessage = nil
+        
+        let runner = self.runner
+        Task {
+            do {
+                let freshReport = try await Task.detached {
+                    try runner.runAppCleanup(appName: trimmedName, apply: true)
+                }.value
+                
+                appCleanupReport = freshReport
+                let deletedCount = freshReport.actionSummary.deleted
+                statusMessage = "清理完成，已安全删除 \(deletedCount) 个残留项"
+                errorMessage = nil
+            } catch {
+                errorMessage = error.localizedDescription
+                statusMessage = "清理失败"
+            }
+            isRunning = false
         }
     }
 }

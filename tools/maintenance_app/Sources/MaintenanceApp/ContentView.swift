@@ -8,6 +8,7 @@ enum MaintenanceSection: String, CaseIterable, Identifiable {
     case diskCleanup = "磁盘清理"
     case fileOrganizer = "文件整理"
     case loginItems = "登录项"
+    case appCleanup = "应用残留"
     case scheduledTasks = "定时任务"
 
     var id: String { rawValue }
@@ -18,6 +19,7 @@ enum MaintenanceSection: String, CaseIterable, Identifiable {
         case .diskCleanup: return "externaldrive"
         case .fileOrganizer: return "arrow.triangle.2.circlepath"
         case .loginItems: return "key.viewfinder"
+        case .appCleanup: return "trash"
         case .scheduledTasks: return "timer"
         }
     }
@@ -171,6 +173,8 @@ struct ContentView: View {
             )
         case .loginItems:
             LoginItemsView(report: viewModel.report)
+        case .appCleanup:
+            AppCleanupView(viewModel: viewModel)
         case .scheduledTasks:
             ScheduledTasksView(
                 launchAgents: viewModel.launchAgents,

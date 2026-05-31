@@ -100,4 +100,28 @@ public struct MaintenanceRunner: Sendable {
             return MaintenanceRunResult(report: nil, details: details, errorMessage: error.localizedDescription)
         }
     }
+
+    public func runAppCleanup(appName: String, apply: Bool) throws -> AppCleanupReport {
+        let scriptPath = paths.appCleanupToolRoot
+            .appendingPathComponent("scripts")
+            .appendingPathComponent("app_cleanup.py")
+        var arguments = [scriptPath.path, appName, "--json"]
+        if apply {
+            arguments.append("--apply")
+        }
+        let command = ShellCommand(
+            title: apply ? "执行应用残留清理：\(appName)" : "扫描应用残留：\(appName)",
+            executable: pythonExecutable,
+            arguments: arguments
+        )
+        let details = try ShellCommandRunner.run(command)
+        guard details.succeeded else {
+            throw MaintenanceRunnerError.processFailed(status: details.exitStatus, stderr: details.stderr)
+        }
+        guard !details.stdout.isEmpty, let data = details.stdout.data(using: .utf8) else {
+            throw MaintenanceRunnerError.noJSONOutput
+        }
+        return try JSONDecoder().decode(AppCleanupReport.self, from: data)
+    }
 }
+
