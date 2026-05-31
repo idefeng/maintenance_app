@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import MaintenanceCore
 
+// MARK: - Maintenance Section Enum
 enum MaintenanceSection: String, CaseIterable, Identifiable {
     case overview = "总览"
     case diskCleanup = "磁盘清理"
@@ -10,21 +11,31 @@ enum MaintenanceSection: String, CaseIterable, Identifiable {
     case scheduledTasks = "定时任务"
 
     var id: String { rawValue }
+    
+    var systemImage: String {
+        switch self {
+        case .overview: return "house"
+        case .diskCleanup: return "externaldrive"
+        case .fileOrganizer: return "arrow.triangle.2.circlepath"
+        case .loginItems: return "key.viewfinder"
+        case .scheduledTasks: return "timer"
+        }
+    }
 }
 
+// MARK: - Design System Constants
 enum MaintenanceDesign {
     static let contentWidth: CGFloat = 880
-    static let sidebarWidth: CGFloat = 176
-    static let metricColumnWidth: CGFloat = 150
+    static let sidebarWidth: CGFloat = 186
     static let rowMinHeight: CGFloat = 64
     static let accent = Color(red: 0.12, green: 0.43, blue: 0.92)
 
-    // 与 Figma 稿一致，主内容保持窄宽度，避免工具界面在大屏上铺满。
     static let pageBackground = Color(nsColor: .windowBackgroundColor)
     static let paneBackground = Color(nsColor: .controlBackgroundColor)
     static let divider = Color(nsColor: .separatorColor).opacity(0.65)
 }
 
+// MARK: - Main ContentView Struct
 struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
     @State private var selection: MaintenanceSection? = .overview
@@ -32,10 +43,15 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             List(MaintenanceSection.allCases, selection: $selection) { section in
-                Text(section.rawValue)
-                    .font(.callout.weight(selection == section ? .semibold : .regular))
-                    .padding(.vertical, 4)
-                    .tag(section)
+                HStack(spacing: 8) {
+                    Image(systemName: section.systemImage)
+                        .foregroundStyle(selection == section ? .white : MaintenanceDesign.accent)
+                        .frame(width: 18)
+                    Text(section.rawValue)
+                        .font(.callout.weight(selection == section ? .semibold : .regular))
+                }
+                .padding(.vertical, 4)
+                .tag(section)
             }
             .listStyle(.sidebar)
             .navigationTitle("本机维护")
@@ -167,6 +183,7 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Generic Support Components
 struct ReportActionBar: View {
     let reportAvailable: Bool
     let openReport: () -> Void
@@ -183,90 +200,6 @@ struct ReportActionBar: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-    }
-}
-
-struct OverviewView: View {
-    let report: MaintenanceReport?
-    let healthSummary: MaintenanceHealthSummary
-    let launchAgents: [LaunchAgentState]
-    let onOpenPlist: (LaunchAgentState) -> Void
-    let onOpenLogs: (LaunchAgentState) -> Void
-    let onPreviewLogs: (LaunchAgentState) -> Void
-    let onReinstall: (LaunchAgentState) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HealthSummaryPanel(summary: healthSummary)
-            if let report {
-                MetricGrid(metrics: [
-                    ("待清理项", "\(report.summary.planned)"),
-                    ("预计释放", ByteFormatter.string(from: report.summary.bytesPlanned)),
-                    ("文件整理动作", "\(report.fileOrganizer?.summary.actionCount ?? 0)"),
-                    ("登录项复核", "\(report.loginItems?.summary.manualReviewCount ?? 0)")
-                ])
-                Text("最近报告：\(report.generatedAt)")
-                    .foregroundStyle(.secondary)
-            } else {
-                ContentUnavailableView("暂无报告", systemImage: "doc.text.magnifyingglass", description: Text("点击“扫描”生成第一份维护报告。"))
-            }
-
-            SectionTitle("定时任务状态")
-            ScheduledTasksView(
-                launchAgents: launchAgents,
-                showsManagementActions: false,
-                onOpenPlist: onOpenPlist,
-                onOpenLogs: onOpenLogs,
-                onPreviewLogs: onPreviewLogs,
-                onReinstall: onReinstall
-            )
-        }
-    }
-}
-
-struct HealthSummaryPanel: View {
-    let summary: MaintenanceHealthSummary
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                SectionTitle("健康检查")
-                HealthSeverityBadge(severity: summary.highestSeverity)
-                Spacer(minLength: 12)
-                HealthCountStrip(summary: summary)
-            }
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: summary.highestSeverity.systemImage)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(summary.highestSeverity.tint)
-                    .frame(width: 28, height: 28)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(summary.statusTitle)
-                        .font(.headline)
-                    Text(summary.statusDescription)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            if summary.issues.isEmpty {
-                Text("继续保持当前定时任务和保守清理节奏。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(summary.issues.prefix(6)) { issue in
-                        HealthIssueRow(issue: issue)
-                    }
-                    if summary.issues.count > 6 {
-                        Text("另有 \(summary.issues.count - 6) 条提醒未展开。")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 34)
-                    }
-                }
-            }
-        }
-        .padding(.bottom, 6)
     }
 }
 
@@ -338,526 +271,38 @@ struct HealthIssueRow: View {
     }
 }
 
-extension MaintenanceHealthSeverity {
-    var tint: Color {
-        switch self {
-        case .ok:
-            return .green
-        case .info:
-            return MaintenanceDesign.accent
-        case .warning:
-            return .orange
-        case .critical:
-            return .red
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .ok:
-            return "checkmark.circle.fill"
-        case .info:
-            return "info.circle.fill"
-        case .warning:
-            return "exclamationmark.triangle.fill"
-        case .critical:
-            return "xmark.octagon.fill"
-        }
-    }
-}
-
 struct MetricGrid: View {
-    let metrics: [(String, String)]
+    let metrics: [(String, String, String)] // (label, value, systemImage)
 
     var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 12) {
-            GridRow {
-                ForEach(metrics, id: \.0) { metric in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(metric.1)
-                            .font(.system(size: 26, weight: .bold))
+        HStack(spacing: 16) {
+            ForEach(metrics, id: \.0) { label, value, systemImage in
+                HStack(spacing: 12) {
+                    Image(systemName: systemImage)
+                        .font(.title2)
+                        .foregroundStyle(MaintenanceDesign.accent)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(MaintenanceDesign.accent.opacity(0.1)))
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(value)
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
-                        Text(metric.0)
+                        Text(label)
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
                     }
-                    .frame(width: MaintenanceDesign.metricColumnWidth, alignment: .leading)
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(nsColor: .controlBackgroundColor).opacity(0.4))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .hoverScale()
             }
         }
-        .padding(.vertical, 8)
-    }
-}
-
-struct DiskCleanupView: View {
-    let report: MaintenanceReport?
-    let diskUsage: DiskUsageSnapshot?
-    @State private var searchText = ""
-    @State private var statusFilter = FilterConstants.allValue
-    @State private var categoryFilter = FilterConstants.allValue
-    @State private var selectedCandidate: CleanupCandidate?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let report {
-                let statuses = FilterConstants.sortedValues(report.candidates.map(\.status))
-                let categories = FilterConstants.sortedValues(report.candidates.map(\.category))
-                let filteredCandidates = CleanupCandidateFilter(
-                    searchText: searchText,
-                    status: FilterConstants.filterValue(statusFilter),
-                    category: FilterConstants.filterValue(categoryFilter)
-                ).apply(to: report.candidates)
-
-                MetricGrid(metrics: [
-                    ("计划删除", "\(report.summary.planned)"),
-                    ("已删除", "\(report.summary.deleted)"),
-                    ("跳过", "\(report.summary.skipped)"),
-                    ("失败", "\(report.summary.failed)"),
-                    ("当前显示", "\(filteredCandidates.count)")
-                ])
-                FilterBar(
-                    searchText: $searchText,
-                    searchPrompt: "搜索路径、类别或原因",
-                    filters: [
-                        FilterMenu(
-                            title: "状态",
-                            selection: $statusFilter,
-                            options: statuses,
-                            label: DiskCleanupLabels.status
-                        ),
-                        FilterMenu(
-                            title: "类别",
-                            selection: $categoryFilter,
-                            options: categories,
-                            label: { $0 }
-                        )
-                    ]
-                )
-                DiskUsagePanel(snapshot: diskUsage)
-                SectionTitle("候选项")
-                if report.candidates.isEmpty {
-                    Text("当前没有磁盘清理候选项。").foregroundStyle(.secondary)
-                } else if filteredCandidates.isEmpty {
-                    Text("没有匹配当前筛选条件的候选项。").foregroundStyle(.secondary)
-                } else {
-                    ForEach(filteredCandidates) { candidate in
-                        ActionRowView(
-                            title: candidate.path,
-                            subtitle: "\(candidate.category) · \(candidate.reason)",
-                            trailing: "\(DiskCleanupLabels.status(candidate.status)) · \(ByteFormatter.string(from: candidate.sizeBytes))",
-                            actionTitle: "详情",
-                            action: {
-                                selectedCandidate = candidate
-                            }
-                        )
-                    }
-                }
-            } else {
-                EmptyReportView()
-            }
-        }
-        .sheet(item: $selectedCandidate) { candidate in
-            CleanupCandidateDetailView(candidate: candidate)
-        }
-    }
-}
-
-struct DiskUsagePanel: View {
-    let snapshot: DiskUsageSnapshot?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionTitle("磁盘空间使用")
-            if let snapshot {
-                HStack(alignment: .center, spacing: 24) {
-                    DiskUsageRingChart(fraction: snapshot.usedFraction)
-                        .frame(width: 112, height: 112)
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(snapshot.volumeName)
-                            .font(.headline)
-                        Text(snapshot.mountPath)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                        HStack(spacing: 28) {
-                            DiskUsageValue(title: "总容量", bytes: snapshot.totalBytes)
-                            DiskUsageValue(title: "已使用", bytes: snapshot.usedBytes)
-                            DiskUsageValue(title: "可用", bytes: snapshot.availableBytes)
-                        }
-                    }
-                    Spacer(minLength: 0)
-                }
-            } else {
-                Text("暂时无法读取磁盘容量。")
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 8)
-    }
-}
-
-struct DiskUsageRingChart: View {
-    let fraction: Double
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(Color.secondary.opacity(0.14), lineWidth: 16)
-            Circle()
-                .trim(from: 0, to: CGFloat(fraction))
-                .stroke(
-                    MaintenanceDesign.accent,
-                    style: StrokeStyle(lineWidth: 16, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-            Text("\(Int((fraction * 100).rounded()))%")
-                .font(.title3.bold())
-        }
-        .accessibilityLabel("磁盘已使用 \(Int((fraction * 100).rounded()))%")
-    }
-}
-
-struct DiskUsageValue: View {
-    let title: String
-    let bytes: Int64
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(ByteFormatter.string(from: bytes))
-                .font(.callout.weight(.semibold))
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-struct FileOrganizerView: View {
-    let report: MaintenanceReport?
-    let configuredSources: [FileOrganizerConfiguredSource]
-    let onAddSource: () -> Void
-    let onRemoveSource: (FileOrganizerConfiguredSource) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            FileOrganizerSourceConfigView(
-                configuredSources: configuredSources,
-                onAddSource: onAddSource,
-                onRemoveSource: onRemoveSource
-            )
-            if let organizer = report?.fileOrganizer {
-                MetricGrid(metrics: [
-                    ("来源目录", "\(organizer.summary.sourceCount)"),
-                    ("整理动作", "\(organizer.summary.actionCount)"),
-                    ("待处理目录", "\(organizer.summary.pendingDirectoryCount)"),
-                    ("跳过条目", "\(organizer.summary.skippedCount)")
-                ])
-                ForEach(organizer.sources) { source in
-                    VStack(alignment: .leading, spacing: 8) {
-                        SectionTitle(source.source)
-                        Text("动作 \(source.actionCount)，待处理目录 \(source.pendingDirectoryCount)，跳过 \(source.skippedCount)")
-                            .foregroundStyle(.secondary)
-                        ForEach(source.actions) { action in
-                            RowView(title: action.source, subtitle: action.destination, trailing: action.status)
-                        }
-                        ForEach(source.pendingDirectories) { directory in
-                            RowView(title: directory.directory, subtitle: "待人工处理", trailing: "")
-                        }
-                    }
-                }
-            } else {
-                EmptyReportView()
-            }
-        }
-    }
-}
-
-struct FileOrganizerSourceConfigView: View {
-    let configuredSources: [FileOrganizerConfiguredSource]
-    let onAddSource: () -> Void
-    let onRemoveSource: (FileOrganizerConfiguredSource) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                SectionTitle("用户添加路径")
-                Spacer()
-                Button("添加路径", action: onAddSource)
-                    .controlSize(.small)
-            }
-            if configuredSources.isEmpty {
-                Text("未添加额外整理路径。默认仍会整理 Desktop、Downloads、Documents 第一层。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(configuredSources) { source in
-                    HStack(spacing: 12) {
-                        Image(systemName: "folder")
-                            .foregroundStyle(MaintenanceDesign.accent)
-                            .frame(width: 18)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(source.path)
-                                .font(.callout)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .textSelection(.enabled)
-                            Text(source.recursive ? "递归整理" : "只整理第一层")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer(minLength: 12)
-                        Button("移除") {
-                            onRemoveSource(source)
-                        }
-                        .controlSize(.small)
-                    }
-                    .frame(minHeight: 38)
-                }
-            }
-        }
-        .padding(.bottom, 4)
-    }
-}
-
-struct LoginItemsView: View {
-    let report: MaintenanceReport?
-    @State private var searchText = ""
-    @State private var selectedScope = LoginItemScope.all
-    @State private var selectedItem: LoginItem?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if let loginItems = report?.loginItems {
-                let filteredItems = LoginItemFilter(
-                    searchText: searchText,
-                    category: selectedScope.category,
-                    duplicateOnly: selectedScope.duplicateOnly
-                ).apply(to: loginItems)
-
-                MetricGrid(metrics: [
-                    ("总项数", "\(loginItems.summary.itemCount)"),
-                    ("plist", "\(loginItems.summary.launchPlistCount)"),
-                    ("自有自动化", "\(loginItems.summary.ownAutomationCount)"),
-                    ("人工复核", "\(loginItems.summary.manualReviewCount)"),
-                    ("当前显示", "\(filteredItems.count)")
-                ])
-                LoginItemFilterBar(searchText: $searchText, selectedScope: $selectedScope)
-                SectionTitle("重复显示名")
-                if loginItems.duplicateDisplayNames.isEmpty {
-                    Text("当前没有重复显示名。").foregroundStyle(.secondary)
-                } else {
-                    ForEach(loginItems.duplicateDisplayNames) { duplicate in
-                        RowView(
-                            title: duplicate.displayName,
-                            subtitle: duplicate.identifiers.compactMap { $0 }.joined(separator: ", "),
-                            trailing: "\(duplicate.count)"
-                        )
-                    }
-                }
-                SectionTitle("登录项明细")
-                if filteredItems.isEmpty {
-                    Text("没有匹配当前筛选条件的登录项。").foregroundStyle(.secondary)
-                } else {
-                    ForEach(filteredItems) { item in
-                        LoginItemRowView(item: item) {
-                            selectedItem = item
-                        }
-                    }
-                    if filteredItems.count > 80 {
-                        Text("当前筛选结果较多，可继续输入关键词缩小范围。")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                SectionTitle("Launch plist")
-                ForEach(loginItems.launchPlists.prefix(40)) { plist in
-                    RowView(
-                        title: plist.label ?? plist.path,
-                        subtitle: plist.path,
-                        trailing: plist.rootLevel ? "系统级" : "用户级"
-                    )
-                }
-            } else {
-                EmptyReportView()
-            }
-        }
-        .sheet(item: $selectedItem) { item in
-            LoginItemDetailView(item: item)
-        }
-    }
-}
-
-struct LoginItemRowView: View {
-    let item: LoginItem
-    let action: () -> Void
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            LoginItemIconView(item: item)
-                .frame(width: 28, height: 28)
-            HStack(alignment: .firstTextBaseline, spacing: 16) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(item.displayName)
-                        .font(.body)
-                        .lineLimit(2)
-                        .textSelection(.enabled)
-                    let subtitle = item.urlPath ?? item.executablePath ?? item.identifier ?? ""
-                    if !subtitle.isEmpty {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                            .truncationMode(.middle)
-                            .textSelection(.enabled)
-                    }
-                }
-                Spacer(minLength: 16)
-                Text("\(LoginItemLabels.category(item.category)) · \(LoginItemLabels.action(item.suggestedAction))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.trailing)
-                Button("详情", action: action)
-                    .controlSize(.small)
-            }
-        }
-        .padding(.vertical, 6)
-    }
-}
-
-struct LoginItemIconView: View {
-    let item: LoginItem
-
-    var body: some View {
-        if let image = iconImage {
-            Image(nsImage: image)
-                .resizable()
-                .scaledToFit()
-        } else {
-            Image(systemName: "app.dashed")
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(.secondary)
-                .padding(3)
-        }
-    }
-
-    private var iconImage: NSImage? {
-        for path in [item.urlPath, item.executablePath].compactMap({ $0 }) {
-            if FileManager.default.fileExists(atPath: path) {
-                return NSWorkspace.shared.icon(forFile: path)
-            }
-        }
-        return nil
-    }
-}
-
-struct ScheduledTasksView: View {
-    let launchAgents: [LaunchAgentState]
-    var showsManagementActions = true
-    let onOpenPlist: (LaunchAgentState) -> Void
-    let onOpenLogs: (LaunchAgentState) -> Void
-    let onPreviewLogs: (LaunchAgentState) -> Void
-    let onReinstall: (LaunchAgentState) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if launchAgents.isEmpty {
-                Text("未找到本地自动化任务。").foregroundStyle(.secondary)
-            } else {
-                ForEach(launchAgents) { task in
-                    ScheduledTaskRow(
-                        task: task,
-                        showsManagementActions: showsManagementActions,
-                        onOpenPlist: onOpenPlist,
-                        onOpenLogs: onOpenLogs,
-                        onPreviewLogs: onPreviewLogs,
-                        onReinstall: onReinstall
-                    )
-                }
-            }
-        }
-    }
-}
-
-struct ScheduledTaskRow: View {
-    let task: LaunchAgentState
-    let showsManagementActions: Bool
-    let onOpenPlist: (LaunchAgentState) -> Void
-    let onOpenLogs: (LaunchAgentState) -> Void
-    let onPreviewLogs: (LaunchAgentState) -> Void
-    let onReinstall: (LaunchAgentState) -> Void
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            ScheduledTaskIcon(label: task.label)
-                .frame(width: 20, height: 20)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(task.label)
-                    .font(.callout.weight(.semibold))
-                    .lineLimit(1)
-                    .textSelection(.enabled)
-                Text(task.plistPath)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .textSelection(.enabled)
-            }
-            Spacer(minLength: 16)
-            Text(task.installed ? task.scheduleDescription : "未安装")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 88, alignment: .leading)
-            HStack(spacing: 8) {
-                if showsManagementActions {
-                    Button("打开 plist") {
-                        onOpenPlist(task)
-                    }
-                    .disabled(!task.installed)
-                    Button("查看日志") {
-                        onOpenLogs(task)
-                    }
-                }
-                Button("预览日志") {
-                    onPreviewLogs(task)
-                }
-                if showsManagementActions {
-                    Button("重新安装") {
-                        onReinstall(task)
-                    }
-                }
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-        }
-        .frame(minHeight: MaintenanceDesign.rowMinHeight)
-    }
-}
-
-struct ScheduledTaskIcon: View {
-    let label: String
-
-    var body: some View {
-        Image(systemName: systemImage)
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(MaintenanceDesign.accent)
-            .frame(width: 20, height: 20)
-            .background(Circle().fill(MaintenanceDesign.accent.opacity(0.12)))
-            .accessibilityHidden(true)
-    }
-
-    private var systemImage: String {
-        if label.contains("disk-cleanup") {
-            return "externaldrive"
-        }
-        if label.contains("file-organizer") {
-            return "folder"
-        }
-        if label.contains("app-cleanup") {
-            return "app.badge"
-        }
-        return "clock"
+        .padding(.vertical, 4)
     }
 }
 
@@ -917,6 +362,7 @@ struct LoginItemFilterBar: View {
         .controlSize(.small)
     }
 }
+
 enum LoginItemScope: String, CaseIterable, Identifiable {
     case all
     case possibleRemnant
@@ -1101,7 +547,7 @@ struct SectionTitle: View {
 
 struct EmptyReportView: View {
     var body: some View {
-        ContentUnavailableView("暂无报告", systemImage: "doc.text", description: Text("请先点击“扫描”。"))
+        ContentUnavailableView("暂无报告", systemImage: "doc.text", description: Text("请先点击右上角“扫描”生成第一份状态报告。"))
     }
 }
 
@@ -1378,5 +824,86 @@ enum AppDateFormatter {
 enum ByteFormatter {
     static func string(from bytes: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+}
+
+struct LoginItemIconView: View {
+    let item: LoginItem
+
+    var body: some View {
+        if let image = iconImage {
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFit()
+        } else {
+            Image(systemName: "app.dashed")
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(.secondary)
+                .padding(3)
+        }
+    }
+
+    private var iconImage: NSImage? {
+        for path in [item.urlPath, item.executablePath].compactMap({ $0 }) {
+            if FileManager.default.fileExists(atPath: path) {
+                return NSWorkspace.shared.icon(forFile: path)
+            }
+        }
+        return nil
+    }
+}
+
+struct ScheduledTaskIcon: View {
+    let label: String
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(MaintenanceDesign.accent)
+            .frame(width: 20, height: 20)
+            .background(Circle().fill(MaintenanceDesign.accent.opacity(0.12)))
+            .accessibilityHidden(true)
+    }
+
+    private var systemImage: String {
+        if label.contains("disk-cleanup") {
+            return "externaldrive"
+        }
+        if label.contains("file-organizer") {
+            return "folder"
+        }
+        if label.contains("app-cleanup") {
+            return "app.badge"
+        }
+        return "clock"
+    }
+}
+
+extension MaintenanceHealthSeverity {
+    var tint: Color {
+        switch self {
+        case .ok:
+            return .green
+        case .info:
+            return MaintenanceDesign.accent
+        case .warning:
+            return .orange
+        case .critical:
+            return .red
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .ok:
+            return "checkmark.circle.fill"
+        case .info:
+            return "info.circle.fill"
+        case .warning:
+            return "exclamationmark.triangle.fill"
+        case .critical:
+            return "xmark.octagon.fill"
+        }
     }
 }
