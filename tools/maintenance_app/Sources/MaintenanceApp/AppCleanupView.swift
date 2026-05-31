@@ -138,19 +138,63 @@ struct AppCleanupView: View {
                         .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
                 )
                 
-                Button("开始扫描") {
-                    viewModel.runAppCleanupScan(appName: viewModel.appCleanupSearchText)
+                if viewModel.isRunning && viewModel.statusMessage.contains("扫描") {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("扫描中...")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 6)
+                } else {
+                    Button("开始扫描") {
+                        viewModel.runAppCleanupScan(appName: viewModel.appCleanupSearchText)
+                    }
+                    .disabled(viewModel.isRunning || viewModel.appCleanupSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                .disabled(viewModel.isRunning || viewModel.appCleanupSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 
-                Button("一键安全清理") {
-                    viewModel.runAppCleanupApply(appName: viewModel.appCleanupSearchText)
+                if viewModel.isRunning && viewModel.statusMessage.contains("清理") {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("清理中...")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 6)
+                } else {
+                    Button("一键安全清理") {
+                        viewModel.runAppCleanupApply(appName: viewModel.appCleanupSearchText)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    .disabled(viewModel.isRunning || viewModel.appCleanupReport == nil || viewModel.appCleanupReport?.actionSummary.safeDelete == 0)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
-                .disabled(viewModel.isRunning || viewModel.appCleanupReport == nil || viewModel.appCleanupReport?.actionSummary.safeDelete == 0)
             }
             .controlSize(.small)
+            
+            HStack(spacing: 8) {
+                Text("快速选择:")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                
+                ForEach(["Xcode", "Docker", "WeChat", "VS Code", "Chrome"], id: \.self) { app in
+                    Button {
+                        viewModel.appCleanupSearchText = app
+                        viewModel.runAppCleanupScan(appName: app)
+                    } label: {
+                        Text(app)
+                            .font(.caption2)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(Color.primary.opacity(0.06)))
+                    }
+                    .buttonStyle(.plain)
+                    .hoverScale()
+                }
+            }
+            .padding(.top, 4)
         }
     }
 

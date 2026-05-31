@@ -619,29 +619,50 @@ struct OptionalDetailField: View {
 struct LogPreviewSheet: View {
     let title: String
     let logs: [MaintenanceLogPreview]
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedPath: String?
+    @State private var logSearchText = ""
 
     private var selectedLog: MaintenanceLogPreview? {
         logs.first { $0.path == selectedPath } ?? logs.first
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 28) {
-            LogPreviewListPane(
-                logs: logs,
-                selectedPath: $selectedPath
-            )
-            .frame(width: 294)
+        VStack(spacing: 12) {
+            HStack {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .foregroundStyle(MaintenanceDesign.accent)
+                    Text(title)
+                        .font(.headline)
+                }
+                Spacer()
+                Button("关闭") {
+                    dismiss()
+                }
+                .controlSize(.small)
+            }
+            .padding(.horizontal, 4)
+            
+            Divider()
+            
+            HStack(alignment: .top, spacing: 24) {
+                LogPreviewListPane(
+                    logs: logs,
+                    selectedPath: $selectedPath
+                )
+                .frame(width: 260)
 
-            if let selectedLog {
-                LogPreviewDetailView(log: selectedLog)
-            } else {
-                ContentUnavailableView("暂无日志", systemImage: "doc.text.magnifyingglass", description: Text("对应日志目录中没有可预览的日志文件。"))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if let selectedLog {
+                    LogPreviewDetailView(log: selectedLog, searchText: $logSearchText)
+                } else {
+                    ContentUnavailableView("暂无日志", systemImage: "doc.text.magnifyingglass", description: Text("对应日志目录中没有可预览的日志文件。"))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
-        .padding(15)
-        .frame(width: 812, height: 556)
+        .padding(20)
+        .frame(width: 880, height: 600)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             selectedPath = logs.first?.path
@@ -701,36 +722,112 @@ struct LogPreviewListItem: View {
 
 struct LogPreviewDetailView: View {
     let log: MaintenanceLogPreview
+    @Binding var searchText: String
+
+    private var logLines: [(Int, String)] {
+        log.content
+            .components(separatedBy: .newlines)
+            .enumerated()
+            .map { ($0 + 1, $1) }
+    }
+
+    private var filteredLines: [(Int, String)] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if query.isEmpty {
+            return logLines
+        }
+        return logLines.filter { $0.1.lowercased().contains(query) }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(log.fileName)
-                .font(.system(size: 20, weight: .bold))
-                .lineLimit(2)
-                .textSelection(.enabled)
-            HStack(spacing: 16) {
-                Text(AppDateFormatter.runTimestamp.string(from: log.modifiedAt))
-                Text(ByteFormatter.string(from: log.sizeBytes))
-                if log.isTruncated {
-                    Text("仅显示尾部")
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(log.fileName)
+                        .font(.system(size: 18, weight: .bold))
+                        .lineLimit(1)
+                    HStack(spacing: 12) {
+                        Text(AppDateFormatter.runTimestamp.string(from: log.modifiedAt))
+                        Text(ByteFormatter.string(from: log.sizeBytes))
+                        if log.isTruncated {
+                            Text("仅显示尾部")
+                        }
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                 }
+                
+                Spacer()
+                
+                // 搜索输入框
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    TextField("过滤日志行 (如: error, fail)", text: $searchText)
+                        .textFieldStyle(.plain)
+                        .font(.caption)
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                                .font(.caption)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+                )
+                .frame(width: 220)
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            DetailField(title: "路径", value: log.path, monospaced: true)
+            
+            DetailField(title: "完整路径", value: log.path, monospaced: true)
+                .font(.caption2)
+            
             if log.content.isEmpty {
                 Text("日志文件为空。")
                     .foregroundStyle(.secondary)
+                    .font(.callout)
+            } else if filteredLines.isEmpty {
+                ContentUnavailableView(
+                    "无匹配的日志行",
+                    systemImage: "doc.text.magnifyingglass",
+                    description: Text("未找到包含关键字 [\(searchText)] 的日志行。")
+                )
+                .frame(maxHeight: .infinity)
             } else {
                 ScrollView {
-                    Text(log.content)
-                        .font(.system(size: 12, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    LazyVStack(alignment: .leading, spacing: 4) {
+                        ForEach(filteredLines, id: \.0) { lineNumber, content in
+                            HStack(alignment: .top, spacing: 10) {
+                                Text("\(lineNumber)")
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundStyle(Color.secondary.opacity(0.5))
+                                    .frame(width: 32, alignment: .trailing)
+                                
+                                Text(content)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundStyle(.primary)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                    }
                 }
+                .padding(8)
+                .background(Color(nsColor: .textBackgroundColor).opacity(0.2))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
         }
-        .padding(.top, 28)
+        .padding(.top, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
