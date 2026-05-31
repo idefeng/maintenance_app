@@ -1,29 +1,29 @@
 # 本地自动整理与清理工具
 
-这个仓库当前包含一个用于 macOS 的本地文件整理工具，相关代码和配置已收拢到 [`/Users/idefeng/Documents/work/tools/file_organizer`](/Users/idefeng/Documents/work/tools/file_organizer)。
-同时新增了一个用于扫描已卸载应用残留文件的工具，相关代码位于 [`/Users/idefeng/Documents/work/tools/app_cleanup`](/Users/idefeng/Documents/work/tools/app_cleanup)。
-磁盘空间清理工具位于 [`/Users/idefeng/Documents/work/tools/disk_cleanup`](/Users/idefeng/Documents/work/tools/disk_cleanup)，现在也是本地维护任务的统一入口：可定期清理 `Documents/work` 和 `DEV` 下已经确认的可重建占用，附带登录项只读报告，并可复用文件整理工具的整理规则。
-macOS 原生可视化工具位于 [`/Users/idefeng/Documents/work/tools/maintenance_app`](/Users/idefeng/Documents/work/tools/maintenance_app)，用于通过 SwiftUI 查看报告并手动触发统一维护脚本。
+这个仓库当前包含一个用于 macOS 的本地文件整理工具，相关代码和配置已收拢到 [`tools/file_organizer`](tools/file_organizer)。
+同时新增了一个用于扫描已卸载应用残留文件的工具，相关代码位于 [`tools/app_cleanup`](tools/app_cleanup)。
+磁盘空间清理工具位于 [`tools/disk_cleanup`](tools/disk_cleanup)，现在也是本地维护任务的统一入口：可定期清理 `Documents/work` 和 `DEV` 下已经确认的可重建占用，附带登录项只读报告，并可复用文件整理工具的整理规则。
+macOS 原生可视化工具位于 [`tools/maintenance_app`](tools/maintenance_app)，用于通过 SwiftUI 查看报告并手动触发统一维护脚本。
 
 ## macOS 原生维护工具
 
 第一版是 SwiftPM 形式的 SwiftUI App，不依赖 Xcode 工程文件。当前机器只有 Command Line Tools 时也可以构建和运行。
 
 ```bash
-cd /Users/idefeng/Documents/work/tools/maintenance_app
+cd tools/maintenance_app
 swift run MaintenanceCoreChecks
 swift build
 swift run MaintenanceApp
-/bin/zsh /Users/idefeng/Documents/work/tools/maintenance_app/scripts/build_app_bundle.sh
-/bin/zsh /Users/idefeng/Documents/work/tools/maintenance_app/scripts/build_app_bundle.sh --install
-open /Users/idefeng/Documents/work/tools/maintenance_app/dist/MaintenanceApp.app
+/bin/zsh scripts/build_app_bundle.sh
+/bin/zsh scripts/build_app_bundle.sh --install
+open dist/MaintenanceApp.app
 open /Applications/MaintenanceApp.app
 ```
 
 界面包含：
 
 - 总览：展示健康检查、最近报告、待清理项、预计释放空间、文件整理动作和登录项复核数量
-- 磁盘清理：展示统一脚本报告中的清理候选项，并用环形图展示当前磁盘总量、已用和可用空间
+- 磁盘清理：展示统一脚本报告中的清理候选项，并用环形图展示当前磁盘总量、已用 and 可用空间
 - 文件整理：展示来源目录、整理动作、待处理目录和跳过条目，并可从 App 添加额外整理路径
 - 登录项：展示重复显示名、登录项明细、应用图标和建议动作
 - 定时任务：展示 `com.idefeng.disk-cleanup`、`com.idefeng.file-organizer`、`com.idefeng.app-cleanup` 的图标、plist 与计划时间
@@ -62,13 +62,13 @@ open /Applications/MaintenanceApp.app
 
 文件整理页添加的额外整理路径会写入：
 
-- `/Users/idefeng/Documents/work/tools/file_organizer/runtime/config/source-rules.json`
+- `~/Documents/work/tools/file_organizer/runtime/config/source-rules.json`
 
 额外路径默认只整理第一层，和现有 `Desktop`、`Downloads`、`Documents` 规则一致；统一维护入口 `disk_cleanup.py --organize-files` 和单独的 `file_organizer.py` 都会读取这份配置。
 
 构建脚本会生成可双击启动的 App：
 
-- App 路径：`/Users/idefeng/Documents/work/tools/maintenance_app/dist/MaintenanceApp.app`
+- App 路径：`tools/maintenance_app/dist/MaintenanceApp.app`
 - 安装路径：`/Applications/MaintenanceApp.app`
 - Bundle ID：`com.idefeng.maintenanceapp`
 - 签名方式：本机 ad-hoc codesign
@@ -78,7 +78,7 @@ open /Applications/MaintenanceApp.app
 
 ## 整理规则
 
-- 来源目录固定为：`/Users/idefeng/Desktop`、`/Users/idefeng/Downloads`、`/Users/idefeng/Documents`
+- 来源目录固定为：`~/Desktop`、`~/Downloads`、`~/Documents`
 - 三个来源目录都只处理第一层文件，不递归进入子目录
 - 发现普通子目录时，会把它们记录到待处理清单，供后续人工处理
 - 应用程序类文件会移动到 `A-项目管理/其他信息/软件安装包`
@@ -92,41 +92,27 @@ open /Applications/MaintenanceApp.app
 ## 手动运行
 
 ```bash
-python3 /Users/idefeng/Documents/work/tools/file_organizer/scripts/file_organizer.py --dry-run
-python3 /Users/idefeng/Documents/work/tools/file_organizer/scripts/file_organizer.py
-python3 /Users/idefeng/Documents/work/tools/file_organizer/scripts/file_organizer.py --json
-/bin/zsh /Users/idefeng/Documents/work/tools/file_organizer/scripts/run_file_organizer.sh
-/bin/zsh /Users/idefeng/Documents/work/tools/file_organizer/scripts/run_file_organizer.sh --dry-run
-python3 /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/disk_cleanup.py --skip-disk-cleanup --organize-files
-python3 /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/disk_cleanup.py --skip-disk-cleanup --organize-files --apply
+python3 tools/file_organizer/scripts/file_organizer.py --dry-run
+python3 tools/file_organizer/scripts/file_organizer.py
+python3 tools/file_organizer/scripts/file_organizer.py --json
+/bin/zsh tools/file_organizer/scripts/run_file_organizer.sh
+/bin/zsh tools/file_organizer/scripts/run_file_organizer.sh --dry-run
+python3 tools/disk_cleanup/scripts/disk_cleanup.py --skip-disk-cleanup --organize-files
+python3 tools/disk_cleanup/scripts/disk_cleanup.py --skip-disk-cleanup --organize-files --apply
 ```
 
 ## 运行产物
 
-- JSON 报告：`/Users/idefeng/Documents/work/tools/file_organizer/runtime/reports/latest.json`
-- 待处理子目录清单：`/Users/idefeng/Documents/work/tools/file_organizer/runtime/reports/pending-directories-latest.json`
-- 文本日志：`/Users/idefeng/Documents/work/tools/file_organizer/runtime/logs/`，每次执行会生成一个 `file-organizer-时间戳.log`
-- `launchd` 配置模板：[`/Users/idefeng/Documents/work/tools/file_organizer/launchd/com.idefeng.file-organizer.plist`](/Users/idefeng/Documents/work/tools/file_organizer/launchd/com.idefeng.file-organizer.plist)
-- 安装脚本：[`/Users/idefeng/Documents/work/tools/file_organizer/scripts/install_launch_agent.sh`](/Users/idefeng/Documents/work/tools/file_organizer/scripts/install_launch_agent.sh)
-
-当前版本的整理报告包含来源目录维度统计、待处理子目录数量和跳过条目数量；普通非文档文件会出现在 `skipped_entries` 中。待处理目录清单也会带上生成时间与总数元数据。
-
-当前内置文档关键词规则顺序如下：
-
-- `托育` -> `A-项目管理/A-国家卫健委/1-能力建设和继续教育中心/1-资格认证处/托育项目`
-- `睡眠` -> `A-项目管理/A-国家卫健委/1-能力建设和继续教育中心/睡眠医学人才`
-- `继续医学教育` 或 `CME` -> `A-项目管理/A-国家卫健委/1-能力建设和继续教育中心/继续医学教育管理平台`
-- `培训统筹` -> `A-项目管理/A-国家卫健委/1-能力建设和继续教育中心/培训统筹办公室`
-- `可验证` -> `A-项目管理/A-国家卫健委/1-能力建设和继续教育中心/可验证自学`
-- `中医药` -> `A-项目管理/A-国家卫健委/2-中医药管理局`
-- `工业互联网` -> `A-项目管理/G-工业互联网研究院`
-- `博奥教育` -> `A-项目管理/其他信息/公司信息`
-- 未命中 -> `A-项目管理/其他信息`
+- JSON 报告：`tools/file_organizer/runtime/reports/latest.json`
+- 待处理子目录清单：`tools/file_organizer/runtime/reports/pending-directories-latest.json`
+- 文本日志：`tools/file_organizer/runtime/logs/`，每次执行会生成一个 `file-organizer-时间戳.log`
+- `launchd` 配置模板：[`tools/file_organizer/launchd/com.idefeng.file-organizer.plist`](tools/file_organizer/launchd/com.idefeng.file-organizer.plist)
+- 安装脚本：[`tools/file_organizer/scripts/install_launch_agent.sh`](tools/file_organizer/scripts/install_launch_agent.sh)
 
 ## 安装 launchd
 
 ```bash
-/bin/zsh /Users/idefeng/Documents/work/tools/file_organizer/scripts/install_launch_agent.sh
+/bin/zsh tools/file_organizer/scripts/install_launch_agent.sh
 ```
 
 该任务会由 `launchd` 在每天 13:00 通过 `osascript` 唤起 `Terminal` 执行 `run_file_organizer.sh`。这样做是为了绕开后台 `launchd` 直接访问 `Desktop`、`Documents`、`Downloads` 时可能遇到的 macOS 权限限制；真正的整理逻辑已委托给统一入口 `disk_cleanup.py --skip-disk-cleanup --organize-files --apply`，并把输出写入 `runtime/logs/`。
@@ -144,10 +130,10 @@ python3 /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/disk_cleanup.py
 ### 手动运行
 
 ```bash
-python3 /Users/idefeng/Documents/work/tools/app_cleanup/scripts/app_cleanup.py LetsVPN
-python3 /Users/idefeng/Documents/work/tools/app_cleanup/scripts/app_cleanup.py LetsVPN --json
-python3 /Users/idefeng/Documents/work/tools/app_cleanup/scripts/app_cleanup.py LetsVPN --apply
-python3 /Users/idefeng/Documents/work/tools/app_cleanup/scripts/app_cleanup.py LetsVPN --report-path /tmp/letsvpn-cleanup.json
+python3 tools/app_cleanup/scripts/app_cleanup.py LetsVPN
+python3 tools/app_cleanup/scripts/app_cleanup.py LetsVPN --json
+python3 tools/app_cleanup/scripts/app_cleanup.py LetsVPN --apply
+python3 tools/app_cleanup/scripts/app_cleanup.py LetsVPN --report-path /tmp/letsvpn-cleanup.json
 ```
 
 ### 扫描范围
@@ -177,14 +163,14 @@ python3 /Users/idefeng/Documents/work/tools/app_cleanup/scripts/app_cleanup.py L
 
 ### 定时运行
 
-`launchd` 模板位于 [`/Users/idefeng/Documents/work/tools/app_cleanup/launchd/com.idefeng.app-cleanup.plist`](/Users/idefeng/Documents/work/tools/app_cleanup/launchd/com.idefeng.app-cleanup.plist)，配置为每周五东京时间 `15:00` 运行一次，对应北京时间 `14:00`。
+`launchd` 模板位于 [`tools/app_cleanup/launchd/com.idefeng.app-cleanup.plist`](tools/app_cleanup/launchd/com.idefeng.app-cleanup.plist)，配置为每周五东京时间 `15:00` 运行一次，对应北京时间 `14:00`。
 该任务会通过 `osascript` 唤起 `Terminal` 执行清理脚本，用来绕开后台进程直接读取 `Documents` 时可能遇到的 macOS 权限限制。
 
 安装示例：
 
 ```bash
 mkdir -p ~/Library/LaunchAgents
-cp /Users/idefeng/Documents/work/tools/app_cleanup/launchd/com.idefeng.app-cleanup.plist ~/Library/LaunchAgents/
+cp tools/app_cleanup/launchd/com.idefeng.app-cleanup.plist ~/Library/LaunchAgents/
 launchctl unload ~/Library/LaunchAgents/com.idefeng.app-cleanup.plist 2>/dev/null || true
 launchctl load ~/Library/LaunchAgents/com.idefeng.app-cleanup.plist
 ```
@@ -192,28 +178,28 @@ launchctl load ~/Library/LaunchAgents/com.idefeng.app-cleanup.plist
 也可以使用安装脚本：
 
 ```bash
-/bin/zsh /Users/idefeng/Documents/work/tools/app_cleanup/scripts/install_launch_agent.sh
+/bin/zsh tools/app_cleanup/scripts/install_launch_agent.sh
 ```
 
 ## 磁盘空间清理
 
 该工具用于清理两类已经验证过的空间占用：
 
-- `/Users/idefeng/Documents/work/.git/objects/pack/tmp_pack_*` 这类 Git 临时 pack 垃圾
-- `/Users/idefeng/DEV` 下可重建的开发依赖、虚拟环境和构建缓存，例如 `node_modules`、`.venv`、`.next`、`.cache`、`.pytest_cache`、`.vite`、`.expo`、`test-results`、`dist` 和安全的 `build` 目录
+- `~/Documents/work/.git/objects/pack/tmp_pack_*` 这类 Git 临时 pack 垃圾
+- `~/DEV` 下可重建的开发依赖、虚拟环境和构建缓存，例如 `node_modules`、`.venv`、`.next`、`.cache`、`.pytest_cache` stroke `.vite`、`.expo`、`test-results`、`dist` 和安全的 `build` 目录
 
 工具默认只生成预览报告，不会删除文件；必须传入 `--apply` 才会真正清理。清理前会检查候选目录中是否包含 Git 已跟踪文件，包含时会跳过并写入报告，避免误删源码资产。
 
 ### 手动运行
 
 ```bash
-python3 /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/disk_cleanup.py --json
-python3 /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/disk_cleanup.py --login-items
-python3 /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/disk_cleanup.py --organize-files
-python3 /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/disk_cleanup.py --skip-disk-cleanup --organize-files
-python3 /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/disk_cleanup.py --apply
-python3 /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/disk_cleanup.py --apply --login-items --organize-files
-python3 /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/disk_cleanup.py --apply --include-assets
+python3 tools/disk_cleanup/scripts/disk_cleanup.py --json
+python3 tools/disk_cleanup/scripts/disk_cleanup.py --login-items
+python3 tools/disk_cleanup/scripts/disk_cleanup.py --organize-files
+python3 tools/disk_cleanup/scripts/disk_cleanup.py --skip-disk-cleanup --organize-files
+python3 tools/disk_cleanup/scripts/disk_cleanup.py --apply
+python3 tools/disk_cleanup/scripts/disk_cleanup.py --apply --login-items --organize-files
+python3 tools/disk_cleanup/scripts/disk_cleanup.py --apply --include-assets
 ```
 
 其中：
@@ -223,7 +209,7 @@ python3 /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/disk_cleanup.py
 - `--organize-files`：同时运行文件整理规则；未传 `--apply` 时只演练，传入 `--apply` 时会实际移动命中的文件
 - `--skip-disk-cleanup`：跳过磁盘缓存扫描与清理，仅运行 `--organize-files`、`--login-items` 等附加功能，供每日文件整理任务使用
 - `--apply`：执行保守清理，不清理业务资产和 release 交付包
-- `--include-assets`：在手动执行时额外清理 `/Users/idefeng/DEV/ETLChina/BAResoucesSystem/course_assets` 与 `/Users/idefeng/DEV/ETLChina/大资源平台/automation/release`
+- `--include-assets`：在手动执行时额外清理 `~/DEV/ETLChina/BAResoucesSystem/course_assets` 与 `~/DEV/ETLChina/大资源平台/automation/release`
 
 ### 登录项只读报告
 
@@ -243,18 +229,18 @@ python3 /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/disk_cleanup.py
 
 ### 定时运行
 
-`launchd` 模板位于 [`/Users/idefeng/Documents/work/tools/disk_cleanup/launchd/com.idefeng.disk-cleanup.plist`](/Users/idefeng/Documents/work/tools/disk_cleanup/launchd/com.idefeng.disk-cleanup.plist)，配置为每周六东京时间 `10:30` 运行一次保守清理。
+`launchd` 模板位于 [`tools/disk_cleanup/launchd/com.idefeng.disk-cleanup.plist`](tools/disk_cleanup/launchd/com.idefeng.disk-cleanup.plist)，配置为每周六东京时间 `10:30` 运行一次保守清理。
 
 安装命令：
 
 ```bash
-/bin/zsh /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/install_launch_agent.sh
+/bin/zsh tools/disk_cleanup/scripts/install_launch_agent.sh
 ```
 
 该定时任务只会调用：
 
 ```bash
-/bin/zsh /Users/idefeng/Documents/work/tools/disk_cleanup/scripts/run_disk_cleanup.sh
+/bin/zsh tools/disk_cleanup/scripts/run_disk_cleanup.sh
 ```
 
 因此不会自动清理 `course_assets` 和 `automation/release`，但会执行保守磁盘清理、文件整理，并随报告附带一次登录项只读扫描。需要清理这两类目录时，应手动执行带 `--include-assets` 的命令。
