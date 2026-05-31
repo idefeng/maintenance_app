@@ -1,13 +1,13 @@
 import Foundation
 
 public enum MaintenanceRunMode: Sendable {
-    case preview
+    case scan
     case conservativeMaintenance
 
     public var title: String {
         switch self {
-        case .preview:
-            return "预览运行"
+        case .scan:
+            return "扫描"
         case .conservativeMaintenance:
             return "执行保守维护"
         }
@@ -62,7 +62,7 @@ public struct MaintenanceRunner: Sendable {
     public func command(for mode: MaintenanceRunMode) -> MaintenanceCommand {
         var arguments = [paths.unifiedScript.path]
         switch mode {
-        case .preview:
+        case .scan:
             arguments.append(contentsOf: ["--login-items", "--organize-files", "--json"])
         case .conservativeMaintenance:
             arguments.append(contentsOf: ["--apply", "--login-items", "--organize-files", "--json"])

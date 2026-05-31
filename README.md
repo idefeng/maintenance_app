@@ -22,7 +22,7 @@ open /Applications/MaintenanceApp.app
 
 界面包含：
 
-- 总览：展示最近报告、待清理项、预计释放空间、文件整理动作和登录项复核数量
+- 总览：展示健康检查、最近报告、待清理项、预计释放空间、文件整理动作和登录项复核数量
 - 磁盘清理：展示统一脚本报告中的清理候选项，并用环形图展示当前磁盘总量、已用和可用空间
 - 文件整理：展示来源目录、整理动作、待处理目录和跳过条目，并可从 App 添加额外整理路径
 - 登录项：展示重复显示名、登录项明细、应用图标和建议动作
@@ -39,7 +39,7 @@ open /Applications/MaintenanceApp.app
 - `复制摘要`：把最近报告的 Markdown 摘要复制到剪贴板，方便发给人工复核
 - `导出摘要`：把最近报告的 Markdown 摘要写入 `tools/disk_cleanup/runtime/reports/` 并在 Finder 中选中
 - `运行详情`：打开最近一次预览、维护或重新安装任务的命令、退出码、stdout 和 stderr
-- `预览运行`：执行 `disk_cleanup.py --login-items --organize-files --json`
+- `扫描`：执行 `disk_cleanup.py --login-items --organize-files --json`，只生成报告和健康检查，不删除文件
 - `执行保守维护`：执行 `disk_cleanup.py --apply --login-items --organize-files --json`
 
 第一版不会删除登录项，也不会自动处理系统级 LaunchAgent/Daemon；登录项页面只展示报告和人工复核建议。
@@ -50,6 +50,15 @@ open /Applications/MaintenanceApp.app
 - `查看日志`：打开对应工具的 `runtime/logs/` 目录
 - `预览日志`：在 App 内读取并展示对应日志目录中最近的日志文件，较大的日志只显示尾部内容
 - `重新安装`：调用对应工具的 `scripts/install_launch_agent.sh`
+
+总览的健康检查会集中提示以下问题：
+
+- 磁盘可用空间低于阈值或接近警戒线
+- 最近报告缺失、过期或包含清理失败项
+- 登录项中存在疑似卸载残留或大量人工复核项
+- 文件整理仍有待人工处理的子目录
+- 用户添加的整理路径不存在或不是目录
+- 本仓库维护用 LaunchAgent 未安装、命令缺失或报告产物过期
 
 文件整理页添加的额外整理路径会写入：
 

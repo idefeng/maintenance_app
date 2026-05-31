@@ -110,8 +110,8 @@ struct ContentView: View {
                 }
                 Spacer(minLength: 16)
                 HStack(spacing: 8) {
-                    Button("预览运行") {
-                        viewModel.runPreview()
+                    Button("扫描") {
+                        viewModel.runScan()
                     }
                     .disabled(viewModel.isRunning)
                     Button("执行保守维护") {
@@ -137,6 +137,7 @@ struct ContentView: View {
         case .overview:
             OverviewView(
                 report: viewModel.report,
+                healthSummary: viewModel.healthSummary,
                 launchAgents: viewModel.launchAgents,
                 onOpenPlist: viewModel.openInstalledPlist,
                 onOpenLogs: viewModel.openLogDirectory,
@@ -187,6 +188,7 @@ struct ReportActionBar: View {
 
 struct OverviewView: View {
     let report: MaintenanceReport?
+    let healthSummary: MaintenanceHealthSummary
     let launchAgents: [LaunchAgentState]
     let onOpenPlist: (LaunchAgentState) -> Void
     let onOpenLogs: (LaunchAgentState) -> Void
@@ -195,6 +197,7 @@ struct OverviewView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            HealthSummaryPanel(summary: healthSummary)
             if let report {
                 MetricGrid(metrics: [
                     ("待清理项", "\(report.summary.planned)"),
@@ -205,7 +208,7 @@ struct OverviewView: View {
                 Text("最近报告：\(report.generatedAt)")
                     .foregroundStyle(.secondary)
             } else {
-                ContentUnavailableView("暂无报告", systemImage: "doc.text.magnifyingglass", description: Text("点击“预览运行”生成第一份维护报告。"))
+                ContentUnavailableView("暂无报告", systemImage: "doc.text.magnifyingglass", description: Text("点击“扫描”生成第一份维护报告。"))
             }
 
             SectionTitle("定时任务状态")
@@ -217,6 +220,148 @@ struct OverviewView: View {
                 onPreviewLogs: onPreviewLogs,
                 onReinstall: onReinstall
             )
+        }
+    }
+}
+
+struct HealthSummaryPanel: View {
+    let summary: MaintenanceHealthSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                SectionTitle("健康检查")
+                HealthSeverityBadge(severity: summary.highestSeverity)
+                Spacer(minLength: 12)
+                HealthCountStrip(summary: summary)
+            }
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: summary.highestSeverity.systemImage)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(summary.highestSeverity.tint)
+                    .frame(width: 28, height: 28)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(summary.statusTitle)
+                        .font(.headline)
+                    Text(summary.statusDescription)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if summary.issues.isEmpty {
+                Text("继续保持当前定时任务和保守清理节奏。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(summary.issues.prefix(6)) { issue in
+                        HealthIssueRow(issue: issue)
+                    }
+                    if summary.issues.count > 6 {
+                        Text("另有 \(summary.issues.count - 6) 条提醒未展开。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 34)
+                    }
+                }
+            }
+        }
+        .padding(.bottom, 6)
+    }
+}
+
+struct HealthCountStrip: View {
+    let summary: MaintenanceHealthSummary
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach([MaintenanceHealthSeverity.critical, .warning, .info], id: \.self) { severity in
+                let count = summary.count(for: severity)
+                if count > 0 {
+                    Text("\(severity.label) \(count)")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(severity.tint)
+                }
+            }
+        }
+    }
+}
+
+struct HealthSeverityBadge: View {
+    let severity: MaintenanceHealthSeverity
+
+    var body: some View {
+        Text(severity.label)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(severity.tint)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(severity.tint.opacity(0.12)))
+    }
+}
+
+struct HealthIssueRow: View {
+    let issue: MaintenanceHealthIssue
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: issue.severity.systemImage)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(issue.severity.tint)
+                .frame(width: 24, height: 24)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(issue.title)
+                        .font(.callout.weight(.semibold))
+                    Text(issue.severity.label)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(issue.severity.tint)
+                }
+                Text(issue.message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                Text(issue.recommendedAction)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let affectedPath = issue.affectedPath, !affectedPath.isEmpty {
+                    Text(affectedPath)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                }
+            }
+        }
+        .padding(.vertical, 5)
+    }
+}
+
+extension MaintenanceHealthSeverity {
+    var tint: Color {
+        switch self {
+        case .ok:
+            return .green
+        case .info:
+            return MaintenanceDesign.accent
+        case .warning:
+            return .orange
+        case .critical:
+            return .red
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .ok:
+            return "checkmark.circle.fill"
+        case .info:
+            return "info.circle.fill"
+        case .warning:
+            return "exclamationmark.triangle.fill"
+        case .critical:
+            return "xmark.octagon.fill"
         }
     }
 }
@@ -956,7 +1101,7 @@ struct SectionTitle: View {
 
 struct EmptyReportView: View {
     var body: some View {
-        ContentUnavailableView("暂无报告", systemImage: "doc.text", description: Text("请先点击“预览运行”。"))
+        ContentUnavailableView("暂无报告", systemImage: "doc.text", description: Text("请先点击“扫描”。"))
     }
 }
 

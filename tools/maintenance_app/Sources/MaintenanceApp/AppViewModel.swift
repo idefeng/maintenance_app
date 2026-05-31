@@ -16,6 +16,12 @@ final class AppViewModel: ObservableObject {
     @Published var isShowingLogPreview = false
     @Published var diskUsage: DiskUsageSnapshot?
     @Published var fileOrganizerSourceConfig = FileOrganizerSourceConfig(sources: [])
+    @Published var healthSummary = MaintenanceHealthAnalyzer.analyze(
+        report: nil,
+        diskUsage: nil,
+        launchAgents: [],
+        fileOrganizerSources: []
+    )
 
     private let paths: MaintenancePaths
     private let runner: MaintenanceRunner
@@ -36,9 +42,11 @@ final class AppViewModel: ObservableObject {
             statusMessage = "已读取最新报告"
             errorMessage = nil
         } catch {
+            report = nil
             statusMessage = "等待生成报告"
             errorMessage = "未能读取最新报告：\(error.localizedDescription)"
         }
+        refreshHealthSummary()
     }
 
     func addFileOrganizerSource() {
@@ -59,6 +67,7 @@ final class AppViewModel: ObservableObject {
             updatedConfig.add(path: selectedURL.path)
             try FileOrganizerSourceConfigStore.write(updatedConfig, to: paths.fileOrganizerSourceConfig)
             fileOrganizerSourceConfig = updatedConfig
+            refreshHealthSummary()
             statusMessage = "已添加整理路径"
             errorMessage = nil
         } catch {
@@ -72,6 +81,7 @@ final class AppViewModel: ObservableObject {
             updatedConfig.remove(source)
             try FileOrganizerSourceConfigStore.write(updatedConfig, to: paths.fileOrganizerSourceConfig)
             fileOrganizerSourceConfig = updatedConfig
+            refreshHealthSummary()
             statusMessage = "已移除整理路径"
             errorMessage = nil
         } catch {
@@ -80,12 +90,12 @@ final class AppViewModel: ObservableObject {
     }
 
     func openLatestReport() {
-        openExistingURL(paths.latestReport, missingMessage: "最新报告不存在，请先点击“预览运行”。")
+        openExistingURL(paths.latestReport, missingMessage: "最新报告不存在，请先点击“扫描”。")
     }
 
     func copyReportSummary() {
         guard let report else {
-            errorMessage = "暂无报告可复制，请先点击“预览运行”。"
+            errorMessage = "暂无报告可复制，请先点击“扫描”。"
             return
         }
         NSPasteboard.general.clearContents()
@@ -96,7 +106,7 @@ final class AppViewModel: ObservableObject {
 
     func exportReportSummary() {
         guard let report else {
-            errorMessage = "暂无报告可导出，请先点击“预览运行”。"
+            errorMessage = "暂无报告可导出，请先点击“扫描”。"
             return
         }
         let directory = paths.latestReport.deletingLastPathComponent()
@@ -167,6 +177,7 @@ final class AppViewModel: ObservableObject {
                 lastRunDetails = details
                 isShowingRunDetails = true
                 launchAgents = LaunchAgentState.knownStates(paths: paths)
+                refreshHealthSummary()
                 if details.succeeded {
                     statusMessage = "已重新安装 \(task.label)"
                 } else {
@@ -181,8 +192,8 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    func runPreview() {
-        run(.preview, label: "预览运行")
+    func runScan() {
+        run(.scan, label: "扫描")
     }
 
     func runConservativeMaintenance() {
@@ -210,7 +221,10 @@ final class AppViewModel: ObservableObject {
                 if let freshReport = result.report {
                     report = freshReport
                     launchAgents = LaunchAgentState.knownStates(paths: paths)
+                    refreshDiskUsage()
+                    refreshFileOrganizerSources()
                 }
+                refreshHealthSummary()
                 if let errorMessage = result.errorMessage {
                     self.errorMessage = errorMessage
                     statusMessage = "\(label)失败"
@@ -235,6 +249,15 @@ final class AppViewModel: ObservableObject {
         } catch {
             errorMessage = "读取文件整理路径配置失败：\(error.localizedDescription)"
         }
+    }
+
+    private func refreshHealthSummary() {
+        healthSummary = MaintenanceHealthAnalyzer.analyze(
+            report: report,
+            diskUsage: diskUsage,
+            launchAgents: launchAgents,
+            fileOrganizerSources: fileOrganizerSourceConfig.sources
+        )
     }
 
     private func openExistingURL(_ url: URL, missingMessage: String) {

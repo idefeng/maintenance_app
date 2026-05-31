@@ -154,14 +154,16 @@ func checkRunnerCommands() {
     let paths = MaintenancePaths(workspaceRoot: URL(fileURLWithPath: "/tmp/work"))
     let runner = MaintenanceRunner(paths: paths, pythonExecutable: URL(fileURLWithPath: "/usr/bin/python3"))
 
-    let preview = runner.command(for: .preview)
-    expect(preview.executable.path == "/usr/bin/python3", "预览命令的 Python 路径错误")
-    expect(preview.arguments == [
+    expect(MaintenanceRunMode.scan.title == "扫描", "扫描模式标题错误")
+    let scan = runner.command(for: .scan)
+    expect(scan.executable.path == "/usr/bin/python3", "扫描命令的 Python 路径错误")
+    expect(scan.arguments == [
         "/tmp/work/tools/disk_cleanup/scripts/disk_cleanup.py",
         "--login-items",
         "--organize-files",
         "--json"
-    ], "预览命令参数错误")
+    ], "扫描命令参数错误")
+    expect(!scan.arguments.contains("--apply"), "扫描命令不应执行清理")
 
     let maintenance = runner.command(for: .conservativeMaintenance)
     expect(maintenance.arguments == [
@@ -485,6 +487,130 @@ func checkMaintenanceReportExporter() throws {
     expect(MaintenanceReportExporter.fileName(for: report) == "maintenance-summary-2026-05-31T10-00-00.md", "维护报告导出文件名错误")
 }
 
+func checkMaintenanceHealthAnalyzer() throws {
+    let payload = """
+    {
+      "generated_at": "2026-05-28T09:00:00",
+      "apply": false,
+      "include_assets": false,
+      "include_login_items": true,
+      "include_file_organizer": true,
+      "skip_disk_cleanup": false,
+      "summary": {
+        "planned": 3,
+        "deleted": 0,
+        "skipped": 1,
+        "missing": 0,
+        "failed": 1,
+        "bytes_planned": 8589934592,
+        "bytes_deleted": 0
+      },
+      "candidates": [],
+      "login_items": {
+        "mode": "read_only",
+        "sfltool_error": null,
+        "summary": {
+          "item_count": 10,
+          "launch_plist_count": 3,
+          "own_automation_count": 1,
+          "possible_remnant_count": 2,
+          "manual_review_count": 5
+        },
+        "duplicate_display_names": [],
+        "items": [],
+        "launch_plists": []
+      },
+      "file_organizer": {
+        "tool": "file-organizer",
+        "run_at": "2026-05-28T09:00:00",
+        "dry_run": true,
+        "summary": {
+          "source_count": 3,
+          "action_count": 0,
+          "pending_directory_count": 4,
+          "skipped_count": 0
+        },
+        "sources": [],
+        "pending_directories_path": "/tmp/pending.json",
+        "report_path": "/tmp/report.json"
+      }
+    }
+    """.data(using: .utf8)!
+
+    let report = try MaintenanceReport.decode(from: payload)
+    let missingSource = FileOrganizerConfiguredSource(path: "/tmp/maintenance-missing-source-\(UUID().uuidString)")
+    let staleReportDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("maintenance-health-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: staleReportDirectory, withIntermediateDirectories: true)
+    defer {
+        try? FileManager.default.removeItem(at: staleReportDirectory)
+    }
+    let staleTaskReport = staleReportDirectory.appendingPathComponent("latest.json")
+    try "{}".write(to: staleTaskReport, atomically: true, encoding: .utf8)
+    let staleDate = ISO8601DateFormatter().date(from: "2026-05-28T08:00:00Z")!
+    try FileManager.default.setAttributes([.modificationDate: staleDate], ofItemAtPath: staleTaskReport.path)
+
+    let launchAgent = LaunchAgentState(
+        label: "com.idefeng.file-organizer",
+        plistURL: URL(fileURLWithPath: "/tmp/com.idefeng.file-organizer.plist"),
+        payload: nil,
+        installed: false
+    )
+    let staleLaunchAgent = LaunchAgentState(
+        definition: MaintenanceTaskDefinition(
+            label: "com.idefeng.file-organizer",
+            installedPlistURL: URL(fileURLWithPath: "/tmp/com.idefeng.file-organizer.plist"),
+            templatePlistURL: URL(fileURLWithPath: "/tmp/template.plist"),
+            logDirectoryURL: URL(fileURLWithPath: "/tmp/logs"),
+            installerURL: URL(fileURLWithPath: "/tmp/install.sh"),
+            reportURLs: [staleTaskReport]
+        ),
+        payload: [
+            "ProgramArguments": ["/usr/bin/osascript"],
+            "StartCalendarInterval": [
+                "Hour": 13,
+                "Minute": 0
+            ]
+        ],
+        installed: true
+    )
+    let now = ISO8601DateFormatter().date(from: "2026-05-31T10:00:00Z")!
+    let summary = MaintenanceHealthAnalyzer.analyze(
+        report: report,
+        diskUsage: DiskUsageSnapshot(
+            volumeName: "Macintosh HD",
+            mountPath: "/",
+            totalBytes: 100 * 1024 * 1024 * 1024,
+            availableBytes: 8 * 1024 * 1024 * 1024
+        ),
+        launchAgents: [launchAgent, staleLaunchAgent],
+        fileOrganizerSources: [missingSource],
+        now: now
+    )
+
+    let issueIDs = summary.issues.map(\.id)
+    expect(summary.highestSeverity == .critical, "健康检查最高严重级别错误")
+    expect(summary.statusTitle == "需要处理", "健康检查状态标题错误")
+    expect(issueIDs.first == "low-disk-space", "健康检查应优先显示低磁盘空间")
+    expect(issueIDs.contains("disk-cleanup-failures"), "健康检查缺少清理失败提示")
+    expect(issueIDs.contains("stale-maintenance-report"), "健康检查缺少过期报告提示")
+    expect(issueIDs.contains("login-item-remnants"), "健康检查缺少登录项残留提示")
+    expect(issueIDs.contains("file-organizer-pending-directories"), "健康检查缺少待处理目录提示")
+    expect(issueIDs.contains("missing-launch-agent-com.idefeng.file-organizer"), "健康检查缺少定时任务未安装提示")
+    expect(issueIDs.contains("stale-launch-agent-output-com.idefeng.file-organizer"), "健康检查缺少定时任务产物过期提示")
+    expect(issueIDs.contains("missing-file-organizer-source-\(missingSource.path)"), "健康检查缺少无效整理路径提示")
+
+    let missingReportSummary = MaintenanceHealthAnalyzer.analyze(
+        report: nil,
+        diskUsage: nil,
+        launchAgents: [],
+        fileOrganizerSources: [],
+        now: now
+    )
+    expect(missingReportSummary.highestSeverity == .warning, "无报告时应提示警告")
+    expect(missingReportSummary.issues.map(\.id).contains("missing-maintenance-report"), "无报告时缺少报告提示")
+}
+
 func checkAppBundleTemplate() throws {
     let templateURL = URL(fileURLWithPath: "/Users/idefeng/Documents/work/tools/maintenance_app/Resources/AppBundle/Info.plist")
     let data = try Data(contentsOf: templateURL)
@@ -509,5 +635,6 @@ checkLaunchAgentStatusParsing()
 try checkMaintenanceFilters()
 try checkMaintenanceLogReader()
 try checkMaintenanceReportExporter()
+try checkMaintenanceHealthAnalyzer()
 try checkAppBundleTemplate()
 print("MaintenanceCoreChecks passed")
