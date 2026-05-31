@@ -9,6 +9,7 @@ public struct OverviewView: View {
     let onOpenLogs: (LaunchAgentState) -> Void
     let onPreviewLogs: (LaunchAgentState) -> Void
     let onReinstall: (LaunchAgentState) -> Void
+    let onOmniMaintenance: () -> Void
 
     public init(
         report: MaintenanceReport?,
@@ -17,7 +18,8 @@ public struct OverviewView: View {
         onOpenPlist: @escaping (LaunchAgentState) -> Void,
         onOpenLogs: @escaping (LaunchAgentState) -> Void,
         onPreviewLogs: @escaping (LaunchAgentState) -> Void,
-        onReinstall: @escaping (LaunchAgentState) -> Void
+        onReinstall: @escaping (LaunchAgentState) -> Void,
+        onOmniMaintenance: @escaping () -> Void
     ) {
         self.report = report
         self.healthSummary = healthSummary
@@ -26,11 +28,12 @@ public struct OverviewView: View {
         self.onOpenLogs = onOpenLogs
         self.onPreviewLogs = onPreviewLogs
         self.onReinstall = onReinstall
+        self.onOmniMaintenance = onOmniMaintenance
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 22) {
-            HealthSummaryPanel(summary: healthSummary)
+            HealthSummaryPanel(summary: healthSummary, onOmniMaintenance: onOmniMaintenance)
                 .glassCard()
                 .hoverScale()
             
@@ -83,6 +86,7 @@ public struct OverviewView: View {
 // MARK: - HealthSummaryPanel
 struct HealthSummaryPanel: View {
     let summary: MaintenanceHealthSummary
+    let onOmniMaintenance: () -> Void
 
     // 根据问题数量与严重程度，动态计算出系统健康得分（100分为满分）
     private var healthScore: Int {
@@ -180,6 +184,23 @@ struct HealthSummaryPanel: View {
                         }
                     }
                 }
+                
+                Button {
+                    onOmniMaintenance()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                        Text("一键全景智能深度净化")
+                    }
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(MaintenanceDesign.accent)
+                .controlSize(.small)
+                .hoverScale()
+                .padding(.top, 4)
             }
         }
     }

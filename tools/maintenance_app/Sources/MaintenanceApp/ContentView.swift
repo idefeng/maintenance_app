@@ -101,6 +101,9 @@ struct ContentView: View {
         .sheet(isPresented: $viewModel.isShowingLogPreview) {
             LogPreviewSheet(title: viewModel.logPreviewTitle, logs: viewModel.logPreviews)
         }
+        .sheet(isPresented: $viewModel.isShowingOmniProgress) {
+            OmniMaintenanceSheet(viewModel: viewModel)
+        }
     }
 
     private var header: some View {
@@ -160,7 +163,8 @@ struct ContentView: View {
                 onOpenPlist: viewModel.openInstalledPlist,
                 onOpenLogs: viewModel.openLogDirectory,
                 onPreviewLogs: viewModel.previewLogs,
-                onReinstall: viewModel.reinstallLaunchAgent
+                onReinstall: viewModel.reinstallLaunchAgent,
+                onOmniMaintenance: viewModel.runOmniMaintenance
             )
         case .diskCleanup:
             DiskCleanupView(report: viewModel.report, diskUsage: viewModel.diskUsage)
