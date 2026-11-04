@@ -6,6 +6,7 @@
 - 默认扫描演练：按类别统计 Temp、回收站、缩略图缓存、传递优化、Windows Update Download、浏览器缓存、Windows.old、以及可选的 npm/pip/cargo 缓存可回收空间
 - 支持 `-Clean` + 类别选择与 `YES` 确认；用户级扫描无需管理员，系统级清理需提升权限
 - README 补充 Windows 扫描与清理用法
+- 为 `windows_junk_cleanup.ps1` 写入 UTF-8 BOM，避免 Windows PowerShell 5.x 在中文系统下把无 BOM UTF-8 误读为乱码导致解析失败
 
 ## 2026-05-31
 
