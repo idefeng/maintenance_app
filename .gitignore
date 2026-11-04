@@ -33,6 +33,12 @@ tools/disk_cleanup/runtime/reports/*
 !tools/disk_cleanup/runtime/logs/.gitkeep
 !tools/disk_cleanup/runtime/reports/.gitkeep
 
+# Windows 垃圾清理工具运行产物
+tools/windows_junk_cleanup/runtime/logs/*
+tools/windows_junk_cleanup/runtime/reports/*
+!tools/windows_junk_cleanup/runtime/logs/.gitkeep
+!tools/windows_junk_cleanup/runtime/reports/.gitkeep
+
 # SwiftPM 构建产物
 tools/maintenance_app/.build/
 tools/maintenance_app/dist/

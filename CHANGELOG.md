@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-04
+
+- 新增 Windows 垃圾扫描/清理工具 `tools/windows_junk_cleanup`（PowerShell）
+- 默认扫描演练：按类别统计 Temp、回收站、缩略图缓存、传递优化、Windows Update Download、浏览器缓存、Windows.old、以及可选的 npm/pip/cargo 缓存可回收空间
+- 支持 `-Clean` + 类别选择与 `YES` 确认；用户级扫描无需管理员，系统级清理需提升权限
+- README 补充 Windows 扫描与清理用法
+
 ## 2026-05-31
 
 - 新增 SwiftUI 原生维护工具 `tools/maintenance_app`，以 SwiftPM 形式提供 macOS 可视化界面
