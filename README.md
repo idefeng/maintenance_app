@@ -4,6 +4,7 @@
 同时新增了一个用于扫描已卸载应用残留文件的工具，相关代码位于 [`tools/app_cleanup`](tools/app_cleanup)。
 磁盘空间清理工具位于 [`tools/disk_cleanup`](tools/disk_cleanup)，现在也是本地维护任务的统一入口：可定期清理 `Documents/work` 和 `DEV` 下已经确认的可重建占用，附带登录项只读报告，并可复用文件整理工具的整理规则。
 macOS 原生可视化工具位于 [`tools/maintenance_app`](tools/maintenance_app)，用于通过 SwiftUI 查看报告并手动触发统一维护脚本。
+Windows 垃圾扫描/清理脚本位于 [`tools/windows_junk_cleanup`](tools/windows_junk_cleanup)，默认只扫描并报告可回收空间，确认后才按类别删除。
 
 ## macOS 原生维护工具
 
@@ -244,3 +245,58 @@ python3 tools/disk_cleanup/scripts/disk_cleanup.py --apply --include-assets
 ```
 
 因此不会自动清理 `course_assets` 和 `automation/release`，但会执行保守磁盘清理、文件整理，并随报告附带一次登录项只读扫描。需要清理这两类目录时，应手动执行带 `--include-assets` 的命令。
+
+## Windows 垃圾清理
+
+PowerShell 脚本：[`tools/windows_junk_cleanup/scripts/windows_junk_cleanup.ps1`](tools/windows_junk_cleanup/scripts/windows_junk_cleanup.ps1)。
+
+默认是扫描/演练模式，只统计可回收空间并写入报告，**不会删除任何文件**。真正清理需要显式传入 `-Clean`，并在交互确认时输入 `YES`（或使用 `-Yes` 跳过确认）。
+
+### 扫描（默认，无需管理员）
+
+在普通 PowerShell 中运行即可扫描用户级垃圾；系统级目录若无权限会标记为需管理员，但仍尽量报告可读部分。
+
+脚本文件为 **UTF-8（带 BOM）**，以便 Windows PowerShell 5.x 正确解析中文。若自行另存，请保留 BOM，或改用 PowerShell 7（`pwsh`）。
+
+```powershell
+cd tools\windows_junk_cleanup\scripts
+powershell -ExecutionPolicy Bypass -File .\windows_junk_cleanup.ps1
+powershell -ExecutionPolicy Bypass -File .\windows_junk_cleanup.ps1 -Scan -Json
+powershell -ExecutionPolicy Bypass -File .\windows_junk_cleanup.ps1 -ListCategories
+```
+
+### 清理（需确认）
+
+```powershell
+# 清理全部可安全处理的类别（会提示输入 YES）
+powershell -ExecutionPolicy Bypass -File .\windows_junk_cleanup.ps1 -Clean
+
+# 只清理指定类别
+powershell -ExecutionPolicy Bypass -File .\windows_junk_cleanup.ps1 -Clean -Categories UserTemp,BrowserCache,NpmCache
+
+# 跳过交互确认（自动化场景）
+powershell -ExecutionPolicy Bypass -File .\windows_junk_cleanup.ps1 -Clean -Categories UserTemp -Yes
+```
+
+涉及 `WindowsTemp`、`WindowsUpdate`、`DeliveryOptimization`、`WindowsOld` 时，请用“以管理员身份运行”的 PowerShell 再执行 `-Clean`。`Windows.old` 额外要求 `-IncludeWindowsOld`，并会显示高风险警告。
+
+### 覆盖类别
+
+| 类别 ID | 说明 | 默认权限 |
+| --- | --- | --- |
+| `UserTemp` | `%TEMP%` / `LocalAppData\Temp` | 用户 |
+| `WindowsTemp` | `Windows\Temp` | 管理员 |
+| `RecycleBin` | 当前用户回收站 | 用户 |
+| `ThumbnailCache` | Explorer 缩略图/图标缓存 | 用户 |
+| `DeliveryOptimization` | 传递优化缓存 | 管理员（用户级路径可尽力） |
+| `WindowsUpdate` | 仅 `SoftwareDistribution\Download` | 管理员 |
+| `BrowserCache` | Chrome / Edge / Firefox 缓存目录（不含 Cookie/登录数据） | 用户 |
+| `WindowsOld` | `Windows.old`（高风险，需 `-IncludeWindowsOld`） | 管理员 |
+| `NpmCache` | 仅当本机存在 `npm` | 用户 |
+| `PipCache` | 仅当本机存在 `pip`/`pip3` | 用户 |
+| `CargoCache` | 仅当本机存在 `cargo`（`registry\cache` + `git\db`） | 用户 |
+
+### 运行产物
+
+- JSON 报告：`tools/windows_junk_cleanup/runtime/reports/latest.json`
+- 带时间戳的扫描/清理报告同目录下的 `scan-*.json` / `clean-*.json`
