@@ -256,6 +256,8 @@ PowerShell 脚本：[`tools/windows_junk_cleanup/scripts/windows_junk_cleanup.ps
 
 在普通 PowerShell 中运行即可扫描用户级垃圾；系统级目录若无权限会标记为需管理员，但仍尽量报告可读部分。
 
+脚本文件为 **UTF-8（带 BOM）**，以便 Windows PowerShell 5.x 正确解析中文。若自行另存，请保留 BOM，或改用 PowerShell 7（`pwsh`）。
+
 ```powershell
 cd tools\windows_junk_cleanup\scripts
 powershell -ExecutionPolicy Bypass -File .\windows_junk_cleanup.ps1

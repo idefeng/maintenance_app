@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Windows junk scanner / cleaner for the maintenance_app win-tools project.
 
